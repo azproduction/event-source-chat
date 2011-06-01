@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+    <head>
+        <title>EventSource &mdash; Chat</title>
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+        <style type="text/css">
+        html, body {
+            margin:0;
+            padding:0;
+            width:100%;
+            font-family: monospace;
+        }
+
+        input {
+            position: fixed;
+            top: 0px;
+            left: 0px;
+            width: 100%;
+            padding-left: 10px;
+            border: 0;
+            border-bottom: solid 1px #555;
+            height: 20px;
+            font-size: 14px;
+            background: rgba(255,255,255,0.9);
+            font-family: monospace;
+            box-shadow: 2px 0px 5px #BBB;
+        }
+
+        #chat {
+            margin-top: 30px;
+            padding-left: 10px;
+        }
+
+        .bot {
+            color: silver;
+        }
+        </style>
+    </head>
+<body>
+    <input type="text" />
+    <div id="chat">
+        <div>Welcome to EventSource Chat!</div>
+    </div>
+    <script type="text/javascript" src="http://yandex.st/jquery/1.6.0/jquery.min.js"></script>
+    <script type="text/javascript">
+    setTimeout(function () { // Ставлю именно таймаут, а не $.ready иначе у вебкитов будет бесконечная загрузка
+
+        // Если нет EventSource, то алертуем и выходим
+        if (!window.EventSource) {
+            alert('No EventSource');
+            return;
+        }
+
+        // Получаем имя из localStorage и запрашиваем новое
+        var name = (prompt('Name:', window.localStorage ? window.localStorage['name'] || '' : '') || 'anonymous').substr(0, 20);
+
+        // Пытаемся сохранить имя
+        if (window.localStorage) {
+            window.localStorage['name'] = name;
+        }
+
+        // Создаем EventSource
+        var eventSrc = new EventSource("/event?name=" + name);
+
+        // Кэшируем ссылки на элементы
+        var $text = $('input');
+        var $chat = $('#chat');
+
+        // Простой эскейпинг строки
+        function escape(str, length) {
+            return str.substr(0, length || -1).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        // Отрисовка сообщений
+        function renderMessage(data) {
+            $chat.prepend('<div class="' + (data.isbot ? 'bot' : 'human') + '">' +
+                              '<b>' + escape(data.name, 20) + '</b>: <span>' + escape(data.message, 1000) + '</span>' +
+                          '</div>');
+        }
+
+        // Слушаем событие EventSource - "message"
+        eventSrc.addEventListener("message", function(event) {
+            var data = JSON.parse(event.data);
+            // Отрисовываем пришедшее с сервера сообщение
+            renderMessage(data);
+        }, false);
+
+        // Слушаем событие EventSource - "error"
+        eventSrc.addEventListener("error", function(event) {
+            // Сообщаем о проблеме с подключением
+            renderMessage({
+                isbot: true,
+                message: 'connection error',
+                name: '@Chat'
+            });
+        }, false);
+
+        // Отправляем новое сообщение по Enter
+        $text.keyup(function (event) {
+           var message = $text.val().substr(0, 1000);
+
+           if (event.which === 13 && message) {
+               $.get('/message', {
+                   message: message,
+                   name: name
+               });
+               $text.val('');
+           }
+        });
+
+    }, 50);
+    </script>
+</body>
+</html>
