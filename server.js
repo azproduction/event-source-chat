@@ -7,6 +7,7 @@
 // Подключаем необходимые модули
 var http = require('http'),
     fs = require('fs'),
+    qs = require('querystring'),
     parse = require('url').parse;
 
 // Кэшируем статику
@@ -107,6 +108,9 @@ var Clients = {
      * @param {Boolean}  isbot
      */
     _send: function (clients, message, name, isbot) {
+        if (!message || !name) {
+            return;
+        }
         // Подготавливаем сообщение
         var data = JSON.stringify({
             message: message.substr(0, 1000),
@@ -164,14 +168,24 @@ var Routes = {
         Clients.add(clientId, response, name);
     },
 
-    // Сообщение (Сделал через GET потому, что так проще в Node.js)
-    'GET /message': function (request, response) {
-        var url = parse(request.url, true);
+    // Сообщение
+    'POST /message': function (request, response) {
+        var data = '';
+        // Пришел кусочек тела POST
+        request.on('data', function (chunk) {
+            data += chunk;
+        });
 
-        // Рассылаем всем сообщение
-        Clients.broadcast(url.query.message, url.query.name, false);
-        response.writeHead(200);
-        response.end();
+        // Все кусочки POST тела собраны
+        request.on('end', function () {
+            // Парсим тело
+            data = qs.parse(data);
+
+            // Рассылаем всем сообщение
+            Clients.broadcast(data.message, data.name, false);
+            response.writeHead(200);
+            response.end();
+        });
     },
 
     // Страница 404

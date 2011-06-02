@@ -100,7 +100,7 @@
            var message = $text.val().substr(0, 1000);
 
            if (event.which === 13 && message) {
-               $.get('/message', {
+               $.post('/message', {
                    message: message,
                    name: name
                });
